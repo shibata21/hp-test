@@ -11,8 +11,7 @@
     .serif { font-family: 'Noto Serif JP', serif; }
     .nav-link { color: #5a5046; transition: color 0.2s; }
     .nav-link:hover, .nav-link.active { color: #4a7c59; }
-    .news-body p { margin-bottom: 0.5em; }
-    .news-body a { color: #4a7c59; text-decoration: underline; }
+    .news-body { white-space: pre-wrap; }
     .loader {
       width: 32px; height: 32px;
       border: 3px solid #e8f0e4;
@@ -47,22 +46,22 @@
   <section class="py-16">
     <div class="max-w-3xl mx-auto px-6">
 
-      <!-- Loading state -->
+      <!-- Loading -->
       <div id="news-loading" class="text-center py-12">
         <div class="loader mb-4"></div>
-        <p class="text-stone-400 text-sm">お知らせを読み込み中...</p>
+        <p class="text-stone-400 text-sm">読み込み中...</p>
       </div>
 
-      <!-- Error state -->
+      <!-- Error -->
       <div id="news-error" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-sm text-red-700">
         <p class="font-medium mb-2">⚠ お知らせの取得に失敗しました</p>
         <p id="news-error-detail" class="text-xs text-red-500"></p>
       </div>
 
-      <!-- News list (rendered by JS) -->
+      <!-- News list -->
       <div id="news-list" class="space-y-4"></div>
 
-      <!-- Empty state -->
+      <!-- Empty -->
       <div id="news-empty" class="hidden text-center py-12 text-stone-400 text-sm">
         まだお知らせはありません。
       </div>
@@ -95,10 +94,8 @@
   </footer>
 
   <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
-    // microCMS からお知らせを取得して表示
-    const ENDPOINT = `https://${MICROCMS_CONFIG.serviceId}.microcms.io/api/v1/news?limit=20&orders=-publishedAt`;
-
     const categoryColors = {
       'お知らせ':   'bg-stone-100 text-stone-600',
       'イベント':   'bg-green-100 text-green-700',
@@ -106,31 +103,33 @@
       '季節':       'bg-rose-100 text-rose-700',
     };
 
-    function formatDate(iso) {
-      const d = new Date(iso);
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function formatDate(s) {
+      if (!s) return '';
+      // YYYY-MM-DD or YYYY/MM/DD or Date string
+      const d = new Date(s);
+      if (isNaN(d)) return s; // そのまま表示
       return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
     }
 
-    function escapeHtml(s) {
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    function renderNews(items) {
+    function renderNews(rows) {
       const list = document.getElementById('news-list');
-      list.innerHTML = items.map(item => {
-        const date = formatDate(item.publishedAt || item.createdAt);
-        const cat = item.category || 'お知らせ';
+      // 新しい順にソート（日付列基準）
+      rows.sort((a, b) => new Date(b['日付']) - new Date(a['日付']));
+      list.innerHTML = rows.map(row => {
+        const cat = row['カテゴリ'] || 'お知らせ';
         const catClass = categoryColors[cat] || 'bg-stone-100 text-stone-600';
-        const title = escapeHtml(item.title || '(無題)');
-        const body = item.body || '';
         return `
           <article class="bg-white rounded-xl p-6 hover:shadow-md transition">
             <div class="flex items-center gap-3 mb-3">
-              <time class="text-xs text-stone-400">${date}</time>
+              <time class="text-xs text-stone-400">${escapeHtml(formatDate(row['日付']))}</time>
               <span class="text-xs ${catClass} px-2 py-0.5 rounded">${escapeHtml(cat)}</span>
             </div>
-            <h3 class="serif text-lg text-stone-800 mb-2">${title}</h3>
-            <div class="news-body text-stone-500 text-sm leading-relaxed">${body}</div>
+            <h3 class="serif text-lg text-stone-800 mb-2">${escapeHtml(row['タイトル'] || '(無題)')}</h3>
+            <div class="news-body text-stone-500 text-sm leading-relaxed">${escapeHtml(row['本文'] || '')}</div>
           </article>
         `;
       }).join('');
@@ -138,34 +137,34 @@
 
     async function loadNews() {
       const loading = document.getElementById('news-loading');
-      const error = document.getElementById('news-error');
+      const errorBox = document.getElementById('news-error');
       const errorDetail = document.getElementById('news-error-detail');
       const empty = document.getElementById('news-empty');
 
       try {
-        // 設定確認
-        if (!MICROCMS_CONFIG.serviceId || MICROCMS_CONFIG.serviceId === 'YOUR_SERVICE_ID') {
-          throw new Error('config.js に microCMS のサービスIDとAPIキーを設定してください');
+        if (!NEWS_SHEET_CSV_URL || NEWS_SHEET_CSV_URL === 'YOUR_SHEET_CSV_URL') {
+          throw new Error('config.js に Google スプレッドシートの公開CSV URLを設定してください');
         }
 
-        const res = await fetch(ENDPOINT, {
-          headers: { 'X-MICROCMS-API-KEY': MICROCMS_CONFIG.apiKey }
-        });
+        const res = await fetch(NEWS_SHEET_CSV_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const csv = await res.text();
 
-        const data = await res.json();
+        const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+        const rows = parsed.data.filter(r => r['タイトル']); // タイトル空の行は除外
+
         loading.classList.add('hidden');
 
-        if (!data.contents || data.contents.length === 0) {
+        if (rows.length === 0) {
           empty.classList.remove('hidden');
           return;
         }
-        renderNews(data.contents);
+        renderNews(rows);
       } catch (e) {
         loading.classList.add('hidden');
-        error.classList.remove('hidden');
+        errorBox.classList.remove('hidden');
         errorDetail.textContent = e.message;
-        console.error('microCMS 取得エラー:', e);
+        console.error(e);
       }
     }
 

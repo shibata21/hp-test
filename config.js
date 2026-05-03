@@ -1,21 +1,27 @@
 // ============================================
-// microCMS の設定
+// Google スプレッドシート（お知らせ）の設定
 // ============================================
-// 1. microcms.io でサービスを作成
-// 2. API「news」をリスト形式で作成（フィールド: title, category, body）
-// 3. 設定 → API基本情報 から「サービスID」「GET APIキー」を取得
-// 4. 下記の YOUR_SERVICE_ID と YOUR_API_KEY を書き換える
-const MICROCMS_CONFIG = {
-  serviceId: 'YOUR_SERVICE_ID',
-  apiKey:    'YOUR_API_KEY'
-};
+// 1. Googleスプレッドシートを新規作成
+// 2. 1行目にヘッダー: 日付 / カテゴリ / タイトル / 本文
+// 3. ファイル → 共有 → ウェブに公開 → 形式「カンマ区切り形式(.csv)」→ 公開
+// 4. 表示されたURLを下記に貼り付ける
+const NEWS_SHEET_CSV_URL = 'YOUR_SHEET_CSV_URL';
 
 // ============================================
-// Formspree の設定
+// Google フォーム（お問い合わせ）の設定
 // ============================================
-// 1. formspree.io でフォームを作成
-// 2. 発行されるエンドポイント（https://formspree.io/f/xxxxxxxx）の xxxxxxxx 部分を取得
-// 3. 下記の YOUR_FORM_ID を書き換える
-const FORMSPREE_CONFIG = {
-  formId: 'YOUR_FORM_ID'
+// 1. Googleフォームを新規作成（質問: お名前/メール/電話/種別/内容）
+// 2. 「回答」タブ → スプレッドシートに連携 + 「新しい回答のメール通知」ON
+// 3. プレビュー画面で各入力欄を右クリック「検証」→ name="entry.XXXXXXXX" を確認
+// 4. URLは「.../viewform」を「.../formResponse」に置き換える
+// 5. 下記の YOUR_xxx を全て書き換える
+const CONTACT_FORM = {
+  url: 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse',
+  fields: {
+    name:     'entry.YOUR_NAME_ID',
+    email:    'entry.YOUR_EMAIL_ID',
+    tel:      'entry.YOUR_TEL_ID',
+    category: 'entry.YOUR_CATEGORY_ID',
+    message:  'entry.YOUR_MESSAGE_ID'
+  }
 };
