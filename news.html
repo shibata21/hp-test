@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お知らせ | Fleur</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #faf7f2; color: #2d2926; }
+    .serif { font-family: 'Noto Serif JP', serif; }
+    .nav-link { color: #5a5046; transition: color 0.2s; }
+    .nav-link:hover, .nav-link.active { color: #4a7c59; }
+    .news-body p { margin-bottom: 0.5em; }
+    .news-body a { color: #4a7c59; text-decoration: underline; }
+    .loader {
+      width: 32px; height: 32px;
+      border: 3px solid #e8f0e4;
+      border-top-color: #4a7c59;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <nav class="bg-white/95 backdrop-blur-sm sticky top-0 z-50 border-b border-stone-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="index.html" class="serif text-2xl tracking-[0.15em] text-stone-800">Fleur</a>
+      <div class="hidden md:flex items-center gap-8 text-sm">
+        <a href="index.html" class="nav-link">トップ</a>
+        <a href="about.html" class="nav-link">お店について</a>
+        <a href="products.html" class="nav-link">商品一覧</a>
+        <a href="news.html" class="nav-link active font-medium">お知らせ</a>
+        <a href="contact.html" class="nav-link px-5 py-2 rounded-full text-white text-xs font-medium" style="background:#4a7c59">お問い合わせ</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="py-16 text-center" style="background:linear-gradient(160deg,#e8f0e4,#f5ede0)">
+    <p class="text-xs tracking-widest text-green-700 uppercase font-medium mb-2">News</p>
+    <h1 class="serif text-4xl text-stone-800">お知らせ</h1>
+  </section>
+
+  <section class="py-16">
+    <div class="max-w-3xl mx-auto px-6">
+
+      <!-- Loading state -->
+      <div id="news-loading" class="text-center py-12">
+        <div class="loader mb-4"></div>
+        <p class="text-stone-400 text-sm">お知らせを読み込み中...</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="news-error" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-sm text-red-700">
+        <p class="font-medium mb-2">⚠ お知らせの取得に失敗しました</p>
+        <p id="news-error-detail" class="text-xs text-red-500"></p>
+      </div>
+
+      <!-- News list (rendered by JS) -->
+      <div id="news-list" class="space-y-4"></div>
+
+      <!-- Empty state -->
+      <div id="news-empty" class="hidden text-center py-12 text-stone-400 text-sm">
+        まだお知らせはありません。
+      </div>
+
+    </div>
+  </section>
+
+  <footer style="background:#2d2926" class="text-stone-400 py-14">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row justify-between gap-10 mb-10">
+        <div>
+          <p class="serif text-2xl text-white tracking-widest mb-2">Fleur</p>
+          <p class="text-sm leading-relaxed">〒000-0000 ○○県○○市○○町1-2-3<br>TEL: 000-000-0000<br>営業時間: 10:00〜19:00（火曜定休）</p>
+        </div>
+        <div class="text-sm">
+          <p class="text-white font-medium mb-3">メニュー</p>
+          <ul class="space-y-2">
+            <li><a href="index.html" class="hover:text-white transition">トップ</a></li>
+            <li><a href="about.html" class="hover:text-white transition">お店について</a></li>
+            <li><a href="products.html" class="hover:text-white transition">商品一覧</a></li>
+            <li><a href="news.html" class="hover:text-white transition">お知らせ</a></li>
+            <li><a href="contact.html" class="hover:text-white transition">お問い合わせ</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-stone-700 pt-6 text-xs text-center text-stone-600">
+        © 2025 Fleur. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script>
+    // microCMS からお知らせを取得して表示
+    const ENDPOINT = `https://${MICROCMS_CONFIG.serviceId}.microcms.io/api/v1/news?limit=20&orders=-publishedAt`;
+
+    const categoryColors = {
+      'お知らせ':   'bg-stone-100 text-stone-600',
+      'イベント':   'bg-green-100 text-green-700',
+      '新商品':     'bg-amber-100 text-amber-700',
+      '季節':       'bg-rose-100 text-rose-700',
+    };
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function renderNews(items) {
+      const list = document.getElementById('news-list');
+      list.innerHTML = items.map(item => {
+        const date = formatDate(item.publishedAt || item.createdAt);
+        const cat = item.category || 'お知らせ';
+        const catClass = categoryColors[cat] || 'bg-stone-100 text-stone-600';
+        const title = escapeHtml(item.title || '(無題)');
+        const body = item.body || '';
+        return `
+          <article class="bg-white rounded-xl p-6 hover:shadow-md transition">
+            <div class="flex items-center gap-3 mb-3">
+              <time class="text-xs text-stone-400">${date}</time>
+              <span class="text-xs ${catClass} px-2 py-0.5 rounded">${escapeHtml(cat)}</span>
+            </div>
+            <h3 class="serif text-lg text-stone-800 mb-2">${title}</h3>
+            <div class="news-body text-stone-500 text-sm leading-relaxed">${body}</div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadNews() {
+      const loading = document.getElementById('news-loading');
+      const error = document.getElementById('news-error');
+      const errorDetail = document.getElementById('news-error-detail');
+      const empty = document.getElementById('news-empty');
+
+      try {
+        // 設定確認
+        if (!MICROCMS_CONFIG.serviceId || MICROCMS_CONFIG.serviceId === 'YOUR_SERVICE_ID') {
+          throw new Error('config.js に microCMS のサービスIDとAPIキーを設定してください');
+        }
+
+        const res = await fetch(ENDPOINT, {
+          headers: { 'X-MICROCMS-API-KEY': MICROCMS_CONFIG.apiKey }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+        const data = await res.json();
+        loading.classList.add('hidden');
+
+        if (!data.contents || data.contents.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+        renderNews(data.contents);
+      } catch (e) {
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+        errorDetail.textContent = e.message;
+        console.error('microCMS 取得エラー:', e);
+      }
+    }
+
+    loadNews();
+  </script>
+
+</body>
+</html>
