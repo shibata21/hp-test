@@ -5,7 +5,7 @@
 // 2. 1行目にヘッダー: 日付 / カテゴリ / タイトル / 本文
 // 3. ファイル → 共有 → ウェブに公開 → 形式「カンマ区切り形式(.csv)」→ 公開
 // 4. 表示されたURLを下記に貼り付ける
-const NEWS_SHEET_CSV_URL = 'YOUR_SHEET_CSV_URL';
+const NEWS_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRc6Ob8GWySboTUVPe4ICLr9E0eV-ZKRTf0lAey0uaiSaYYgr2xleW0MRjLwEsDyahxE9orqme6WekD/pub?output=csv';
 
 // ============================================
 // Google フォーム（お問い合わせ）の設定
