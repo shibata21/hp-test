@@ -16,12 +16,12 @@ const NEWS_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRc6
 // 4. URLは「.../viewform」を「.../formResponse」に置き換える
 // 5. 下記の YOUR_xxx を全て書き換える
 const CONTACT_FORM = {
-  url: 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse',
+  url: 'https://docs.google.com/forms/d/e/1FAIpQLSeodP-kP1Xmbdf73wYOSahKi_N3RjQxivfMbxvF4dJga1tqQw/formResponse',
   fields: {
-    name:     'entry.YOUR_NAME_ID',
-    email:    'entry.YOUR_EMAIL_ID',
-    tel:      'entry.YOUR_TEL_ID',
-    category: 'entry.YOUR_CATEGORY_ID',
-    message:  'entry.YOUR_MESSAGE_ID'
+    name:     'entry.733316120',
+    email:    'entry.2050414994',
+    tel:      'entry.1941496355',
+    category: 'entry.1678097880',
+    message:  'entry.889006848'
   }
 };
