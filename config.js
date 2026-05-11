@@ -1,10 +1,4 @@
 // ============================================
-// Google スプレッドシート（お知らせ）の設定
-// ============================================
-// e2etest 用リソース（infra_auto provision で生成）
-const NEWS_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1bxaLmID6wCFWq8oaPZ6fjwRVYfpuQrpZb6lW5c3faF8/gviz/tq?tqx=out:csv&sheet=%E3%81%8A%E7%9F%A5%E3%82%89%E3%81%9B';
-
-// ============================================
 // Google フォーム（お問い合わせ）の設定
 // ============================================
 // e2etest 用フォーム（infra_auto provision で生成）
@@ -22,11 +16,13 @@ const CONTACT_FORM = {
 };
 
 // ============================================
-// Apps Script Web App（admin/ から叩く）の設定
+// Apps Script Web App の設定
 // ============================================
-// e2etest 用 Apps Script プロジェクト（infra_auto provision で生成）
-// adminToken は1クライアント1個、コードに直書きされる前提（hp_test は自分用なので問題なし）
+// 1つの Web App で:
+//   - GET → 公開ページの news.html がお知らせ一覧 JSON を取得（認証不要）
+//   - POST + token → admin/* から CRUD（adminToken 認証）
+// シート本体は非公開（オーナーのみ）。読み取りは必ずこの Web App 経由。
 const ADMIN_WEB_APP = {
-  url: 'https://script.google.com/macros/s/AKfycby9yc_qKIQOvLwX8Hx8UDM-3MoUZMUDIMfKV3JjFqRMozOdLMfyebqn_Gq5e5g46_vp/exec',
+  url: 'https://script.google.com/macros/s/AKfycbzqkwNRXyL2cEFxHZ0_eMXO16KH6z4V-er4NMc7hkWHZAbt1s2jEFcyjSbAtH_oJlNz/exec',
   token: 'e9CYdTkJ9tri4b4utnWE8SBJQXI4CTRj0Z2gzhY9F3Q'
 };

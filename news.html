@@ -94,8 +94,9 @@
   </footer>
 
   <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
+    // 認証不要の Web App GET（doGet）から JSON でお知らせ一覧を取得。
+    // シート本体は非公開、Web App がオーナー権限で読み取って JSON 化して返す。
     const categoryColors = {
       'お知らせ':   'bg-stone-100 text-stone-600',
       'イベント':   'bg-green-100 text-green-700',
@@ -109,15 +110,13 @@
 
     function formatDate(s) {
       if (!s) return '';
-      // YYYY-MM-DD or YYYY/MM/DD or Date string
       const d = new Date(s);
-      if (isNaN(d)) return s; // そのまま表示
+      if (isNaN(d)) return s;
       return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
     }
 
     function renderNews(rows) {
       const list = document.getElementById('news-list');
-      // 新しい順にソート（日付列基準）
       rows.sort((a, b) => new Date(b['日付']) - new Date(a['日付']));
       list.innerHTML = rows.map(row => {
         const cat = row['カテゴリ'] || 'お知らせ';
@@ -142,16 +141,15 @@
       const empty = document.getElementById('news-empty');
 
       try {
-        if (!NEWS_SHEET_CSV_URL || NEWS_SHEET_CSV_URL === 'YOUR_SHEET_CSV_URL') {
-          throw new Error('config.js に Google スプレッドシートの公開CSV URLを設定してください');
+        if (!ADMIN_WEB_APP || !ADMIN_WEB_APP.url) {
+          throw new Error('config.js に ADMIN_WEB_APP.url を設定してください');
         }
 
-        const res = await fetch(NEWS_SHEET_CSV_URL);
+        const res = await fetch(ADMIN_WEB_APP.url);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        const csv = await res.text();
-
-        const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
-        const rows = parsed.data.filter(r => r['タイトル']); // タイトル空の行は除外
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'unknown error');
+        const rows = (data.rows || []).filter(r => r['タイトル']);
 
         loading.classList.add('hidden');
 
