@@ -23,11 +23,6 @@
     </a>
   </header>
 
-  <!-- ワイヤー注意書き -->
-  <div class="max-w-4xl mx-auto bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-6 text-sm text-yellow-900 flex items-center justify-between gap-3">
-    <span>⚠️ これはテスト動作です。データはこのブラウザだけに保存されます。<button onclick="resetData()" class="underline font-bold ml-2">最初の状態に戻す</button></span>
-  </div>
-
   <!-- メッセージ表示エリア -->
   <div id="message" class="max-w-4xl mx-auto mb-4 hidden"></div>
 
@@ -104,7 +99,7 @@
       id="submit-btn"
       type="button"
       onclick="submitForm()"
-      class="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold py-5 rounded-lg shadow"
+      class="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold py-5 rounded-lg shadow disabled:opacity-50"
     >
       ✓ ホームページに載せる
     </button>
@@ -114,10 +109,17 @@
   <!-- 既存お知らせ一覧 -->
   <section class="max-w-4xl mx-auto bg-white border-2 border-gray-300 rounded-2xl p-6 shadow">
 
-    <h2 class="text-2xl font-bold mb-4">📋 いま載っているお知らせ</h2>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-bold">📋 いま載っているお知らせ</h2>
+      <button onclick="refresh()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg text-base">
+        🔄 更新
+      </button>
+    </div>
     <p class="text-base text-gray-700 mb-6">直したいときは「なおす」、消したいときは「けす」を押してください。</p>
 
-    <div id="news-list" class="space-y-4"></div>
+    <div id="news-list" class="space-y-4">
+      <p class="text-center text-gray-500 py-12 text-lg">読み込み中...</p>
+    </div>
 
   </section>
 
@@ -128,13 +130,10 @@
     </a>
   </div>
 
+  <script src="../config.js"></script>
+  <script src="../lib/adminClient.js"></script>
   <script>
-    const STORAGE_KEY = 'admin_news_wire_v1';
-    const INITIAL = [
-      { id: 'init-1', date: '2026-05-08', category: '季節', title: '母の日のお花、はじめました', body: 'カーネーションをはじめ、母の日にぴったりの花束をご用意しております。ご予約も承っております。' },
-      { id: 'init-2', date: '2026-04-20', category: 'イベント', title: '寄せ植え教室を開催します', body: '5月15日（土）に春の寄せ植え教室を開きます。参加費2,500円、お一人様材料費込み。先着10名様。' },
-      { id: 'init-3', date: '2026-04-01', category: 'お知らせ', title: '営業時間変更のご案内', body: '4月より営業時間を10時〜19時に変更いたします。日曜定休は変更ございません。' }
-    ];
+    const client = new AdminClient(ADMIN_WEB_APP);
 
     const CATEGORY_COLORS = {
       'お知らせ': 'bg-green-200 text-green-800',
@@ -143,23 +142,33 @@
       '季節': 'bg-pink-200 text-pink-800'
     };
 
-    let items = loadItems();
-    let editingId = null;
-
-    function loadItems() {
-      const s = localStorage.getItem(STORAGE_KEY);
-      if (s) {
-        try { return JSON.parse(s); } catch (e) {}
-      }
-      return JSON.parse(JSON.stringify(INITIAL));
-    }
-
-    function saveItems() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }
+    let items = [];
+    let editingRowIndex = null;
 
     function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function toDateInputValue(raw) {
+      if (!raw) return '';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    async function refresh() {
+      const el = document.getElementById('news-list');
+      el.innerHTML = '<p class="text-center text-gray-500 py-12 text-lg">読み込み中...</p>';
+      try {
+        const res = await client.listNews();
+        items = res.rows || [];
+        render();
+      } catch (err) {
+        el.innerHTML = `<p class="text-center text-red-700 py-12 text-lg">読み込めませんでした<br><span class="text-sm">${escapeHtml(err.message)}</span></p>`;
+      }
     }
 
     function render() {
@@ -168,37 +177,50 @@
         el.innerHTML = '<p class="text-center text-gray-500 py-12 text-lg">お知らせはまだありません</p>';
         return;
       }
-      el.innerHTML = items.map(item => `
-        <div class="border-2 border-gray-300 rounded-lg p-5 bg-gray-50 ${editingId === item.id ? 'ring-4 ring-blue-300' : ''}">
-          <div class="flex flex-wrap items-center gap-3 mb-3">
-            <span class="text-base text-gray-600">${escapeHtml(item.date)}</span>
-            <span class="${CATEGORY_COLORS[item.category] || 'bg-gray-200 text-gray-800'} px-3 py-1 rounded-full text-sm font-bold">${escapeHtml(item.category)}</span>
-            <span class="text-lg font-bold flex-1">${escapeHtml(item.title)}</span>
+      // 日付降順
+      const sorted = items.slice().sort((a, b) => {
+        const ad = new Date(a['日付']).getTime() || 0;
+        const bd = new Date(b['日付']).getTime() || 0;
+        return bd - ad;
+      });
+      el.innerHTML = sorted.map(item => {
+        const date = toDateInputValue(item['日付']);
+        const category = item['カテゴリ'] || '';
+        const title = item['タイトル'] || '';
+        const body = item['本文'] || '';
+        const isEditing = editingRowIndex === item.rowIndex;
+        return `
+          <div class="border-2 border-gray-300 rounded-lg p-5 bg-gray-50 ${isEditing ? 'ring-4 ring-blue-300' : ''}">
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <span class="text-base text-gray-600">${escapeHtml(date)}</span>
+              <span class="${CATEGORY_COLORS[category] || 'bg-gray-200 text-gray-800'} px-3 py-1 rounded-full text-sm font-bold">${escapeHtml(category)}</span>
+              <span class="text-lg font-bold flex-1">${escapeHtml(title)}</span>
+            </div>
+            <p class="text-gray-700 mb-4 text-base whitespace-pre-wrap">${escapeHtml(body)}</p>
+            <div class="flex gap-3">
+              <button onclick="startEdit(${item.rowIndex})" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg">✏️ なおす</button>
+              <button onclick="deleteItem(${item.rowIndex})" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg">🗑️ けす</button>
+            </div>
           </div>
-          <p class="text-gray-700 mb-4 text-base whitespace-pre-wrap">${escapeHtml(item.body)}</p>
-          <div class="flex gap-3">
-            <button onclick="startEdit('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg">✏️ なおす</button>
-            <button onclick="deleteItem('${item.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg">🗑️ けす</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
-    function startEdit(id) {
-      const item = items.find(i => i.id === id);
+    function startEdit(rowIndex) {
+      const item = items.find(i => i.rowIndex === rowIndex);
       if (!item) return;
-      editingId = id;
-      document.getElementById('input-date').value = item.date;
-      document.getElementById('input-category').value = item.category;
-      document.getElementById('input-title').value = item.title;
-      document.getElementById('input-body').value = item.body;
+      editingRowIndex = rowIndex;
+      document.getElementById('input-date').value = toDateInputValue(item['日付']);
+      document.getElementById('input-category').value = item['カテゴリ'] || '';
+      document.getElementById('input-title').value = item['タイトル'] || '';
+      document.getElementById('input-body').value = item['本文'] || '';
       switchMode('edit');
       render();
       document.getElementById('form-section').scrollIntoView({behavior: 'smooth', block: 'start'});
     }
 
     function cancelEdit() {
-      editingId = null;
+      editingRowIndex = null;
       clearForm();
       switchMode('new');
       render();
@@ -250,7 +272,7 @@
       showMessage._t = setTimeout(() => el.classList.add('hidden'), 5000);
     }
 
-    function submitForm() {
+    async function submitForm() {
       const date = document.getElementById('input-date').value;
       const category = document.getElementById('input-category').value;
       const title = document.getElementById('input-title').value.trim();
@@ -266,50 +288,53 @@
         return;
       }
 
-      const confirmText = editingId
+      const confirmText = editingRowIndex
         ? 'この内容で書きかえてよろしいですか？'
         : 'この内容でホームページに載せてよろしいですか？';
       if (!confirm(confirmText)) return;
 
-      if (editingId) {
-        items = items.map(i => i.id === editingId ? {...i, date, category, title, body} : i);
-        showMessage('✓ お知らせを書きかえました', 'success');
-      } else {
-        items.unshift({id: 'item-' + Date.now(), date, category, title, body});
-        showMessage('✓ ホームページに載せました', 'success');
-      }
-      saveItems();
-      editingId = null;
-      clearForm();
-      switchMode('new');
-      render();
-    }
-
-    function deleteItem(id) {
-      if (!confirm('本当にこのお知らせを消しますか？\n（一度消すと元に戻せません）')) return;
-      items = items.filter(i => i.id !== id);
-      saveItems();
-      if (editingId === id) {
-        editingId = null;
+      const item = { '日付': date, 'カテゴリ': category, 'タイトル': title, '本文': body };
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = '送信中...';
+      try {
+        if (editingRowIndex) {
+          await client.updateNews(editingRowIndex, item);
+          showMessage('✓ お知らせを書きかえました', 'success');
+        } else {
+          await client.createNews(item);
+          showMessage('✓ ホームページに載せました', 'success');
+        }
+        editingRowIndex = null;
         clearForm();
         switchMode('new');
+        await refresh();
+      } catch (err) {
+        showMessage('うまくいきませんでした: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
       }
-      showMessage('✓ お知らせを消しました', 'success');
-      render();
     }
 
-    function resetData() {
-      if (!confirm('お試し用のデータを最初の状態に戻します。よろしいですか？')) return;
-      items = JSON.parse(JSON.stringify(INITIAL));
-      editingId = null;
-      saveItems();
-      clearForm();
-      switchMode('new');
-      showMessage('✓ 最初の状態に戻しました', 'success');
-      render();
+    async function deleteItem(rowIndex) {
+      if (!confirm('本当にこのお知らせを消しますか？\n（一度消すと元に戻せません）')) return;
+      try {
+        await client.deleteNews(rowIndex);
+        if (editingRowIndex === rowIndex) {
+          editingRowIndex = null;
+          clearForm();
+          switchMode('new');
+        }
+        showMessage('✓ お知らせを消しました', 'success');
+        await refresh();
+      } catch (err) {
+        showMessage('けせませんでした: ' + err.message, 'error');
+      }
     }
 
-    render();
+    refresh();
   </script>
 
 </body>

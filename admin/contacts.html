@@ -23,20 +23,18 @@
     </a>
   </header>
 
-  <!-- ワイヤー注意書き -->
-  <div class="max-w-4xl mx-auto bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-6 text-sm text-yellow-900 flex items-center justify-between gap-3">
-    <span>⚠️ これはテスト動作です。データはこのブラウザだけに保存されます。<button onclick="resetData()" class="underline font-bold ml-2">最初の状態に戻す</button></span>
-  </div>
-
   <!-- メッセージ表示エリア -->
   <div id="message" class="max-w-4xl mx-auto mb-4 hidden"></div>
 
   <!-- 案内 -->
-  <div class="max-w-4xl mx-auto bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 mb-6">
+  <div class="max-w-4xl mx-auto bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 mb-6 flex items-center justify-between gap-4">
     <p class="text-lg leading-relaxed">
       お客様から届いたお問い合わせの一覧です。<br>
       返事が終わったら <span class="font-bold">「✓ 対応済みにする」</span> ボタンを押してください。
     </p>
+    <button onclick="refresh()" class="shrink-0 bg-white hover:bg-gray-100 border-2 border-orange-300 text-orange-700 font-bold py-3 px-5 rounded-lg text-base">
+      🔄 更新
+    </button>
   </div>
 
   <!-- 件数サマリ -->
@@ -55,7 +53,9 @@
   </div>
 
   <!-- お問い合わせ一覧 -->
-  <section id="contact-list" class="max-w-4xl mx-auto space-y-4"></section>
+  <section id="contact-list" class="max-w-4xl mx-auto space-y-4">
+    <p class="text-center text-gray-500 py-12 text-lg bg-white border-2 border-gray-300 rounded-2xl">読み込み中...</p>
+  </section>
 
   <!-- 戻るボタン（下にも） -->
   <div class="max-w-4xl mx-auto mt-8 text-center">
@@ -64,7 +64,7 @@
     </a>
   </div>
 
-  <!-- モーダル（ぜんぶ見る） -->
+  <!-- モーダル -->
   <div id="modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
     <div class="bg-white border-4 border-orange-400 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
 
@@ -90,88 +90,65 @@
     </div>
   </div>
 
+  <script src="../config.js"></script>
+  <script src="../lib/adminClient.js"></script>
   <script>
-    const STORAGE_KEY = 'admin_contacts_wire_v1';
     const FILTER_KEY = 'admin_contacts_filter_v1';
-    const INITIAL = [
-      {
-        id: 'c-1',
-        handled: false,
-        date: '2026-05-10',
-        time: '14:32',
-        name: '山田 花子',
-        email: 'hanako@example.com',
-        subject: '商品について',
-        body: 'はじめまして。母の日のお花を探しています。\nピンク系で、5,000円くらいの花束は作っていただけますか？\n5月12日（火）の夕方に取りに伺いたいです。\n\nご予約可能か教えてください。よろしくお願いいたします。'
-      },
-      {
-        id: 'c-2',
-        handled: false,
-        date: '2026-05-09',
-        time: '10:15',
-        name: '佐藤 太郎',
-        email: 'taro@example.com',
-        subject: '予約・配達について',
-        body: '配達についてお伺いします。\n隣町（◯◯市)まで配達はしていただけますでしょうか？\n金額は5,000〜10,000円程度を想定しています。\n\nご返信お待ちしております。'
-      },
-      {
-        id: 'c-3',
-        handled: true,
-        date: '2026-05-05',
-        time: '09:48',
-        name: '鈴木 一郎',
-        email: 'ichiro@example.com',
-        subject: 'その他',
-        body: '先日購入した観葉植物の育て方について質問があります。\n葉が黄色く変色してきました。水のやりすぎでしょうか？\n\nお時間あるときで構いませんので、アドバイスいただけると助かります。'
-      }
-    ];
+    const client = new AdminClient(ADMIN_WEB_APP);
 
-    let contacts = loadContacts();
-    let showAll = loadFilter();
-    let modalOpenId = null;
-
-    function loadContacts() {
-      const s = localStorage.getItem(STORAGE_KEY);
-      if (s) {
-        try { return JSON.parse(s); } catch (e) {}
-      }
-      return JSON.parse(JSON.stringify(INITIAL));
-    }
-
-    function saveContacts() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
-    }
-
-    function loadFilter() {
-      return localStorage.getItem(FILTER_KEY) === '1';
-    }
-
-    function saveFilter() {
-      localStorage.setItem(FILTER_KEY, showAll ? '1' : '0');
-    }
+    let contacts = [];
+    let showAll = localStorage.getItem(FILTER_KEY) === '1';
+    let modalOpenRowIndex = null;
 
     function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function isHandled(c) { return c['対応'] === '済'; }
+
+    function formatTimestamp(raw) {
+      if (!raw) return '';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${y}-${m}-${day}  ${hh}:${mm}`;
     }
 
     function sortContacts(list) {
-      // 未対応を上、対応済みを下。同状態内では日時降順
-      return [...list].sort((a, b) => {
-        if (a.handled !== b.handled) return a.handled ? 1 : -1;
-        const ad = a.date + ' ' + a.time;
-        const bd = b.date + ' ' + b.time;
-        return bd.localeCompare(ad);
+      // 未対応を上、対応済みを下。同状態内ではタイムスタンプ降順
+      return list.slice().sort((a, b) => {
+        const ah = isHandled(a), bh = isHandled(b);
+        if (ah !== bh) return ah ? 1 : -1;
+        const at = new Date(a['タイムスタンプ']).getTime() || 0;
+        const bt = new Date(b['タイムスタンプ']).getTime() || 0;
+        return bt - at;
       });
     }
 
+    async function refresh() {
+      const el = document.getElementById('contact-list');
+      el.innerHTML = '<p class="text-center text-gray-500 py-12 text-lg bg-white border-2 border-gray-300 rounded-2xl">読み込み中...</p>';
+      try {
+        const res = await client.listContacts();
+        contacts = res.rows || [];
+        render();
+      } catch (err) {
+        el.innerHTML = `<p class="text-center text-red-700 py-12 text-lg bg-white border-2 border-red-300 rounded-2xl">読み込めませんでした<br><span class="text-sm">${escapeHtml(err.message)}</span></p>`;
+      }
+    }
+
     function render() {
-      const pending = contacts.filter(c => !c.handled).length;
+      const pending = contacts.filter(c => !isHandled(c)).length;
       const total = contacts.length;
       document.getElementById('count-pending').textContent = pending + ' 件';
       document.getElementById('count-total').textContent = `（ぜんぶで ${total} 件）`;
       document.getElementById('show-all').checked = showAll;
 
-      const visible = sortContacts(showAll ? contacts : contacts.filter(c => !c.handled));
+      const visible = sortContacts(showAll ? contacts : contacts.filter(c => !isHandled(c)));
       const el = document.getElementById('contact-list');
 
       if (visible.length === 0) {
@@ -184,36 +161,35 @@
       }
 
       el.innerHTML = visible.map(c => {
-        const cardCls = c.handled
-          ? 'bg-gray-100 border-2 border-gray-300'
-          : 'bg-white border-4 border-orange-400';
-        const badge = c.handled
+        const handled = isHandled(c);
+        const cardCls = handled ? 'bg-gray-100 border-2 border-gray-300' : 'bg-white border-4 border-orange-400';
+        const badge = handled
           ? '<span class="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold">✓ 対応済み</span>'
           : '<span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">NEW</span>';
-        const toggleBtn = c.handled
-          ? `<button onclick="toggleHandled('${c.id}')" class="w-full bg-gray-500 hover:bg-gray-600 text-white text-xl font-bold py-4 rounded-lg shadow mt-2">↩ 対応中に戻す</button>`
-          : `<button onclick="toggleHandled('${c.id}')" class="w-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-4 rounded-lg shadow mt-2">✓ 対応済みにする</button>`;
+        const toggleBtn = handled
+          ? `<button onclick="toggleHandled(${c.rowIndex}, false)" class="w-full bg-gray-500 hover:bg-gray-600 text-white text-xl font-bold py-4 rounded-lg shadow mt-2">↩ 対応中に戻す</button>`
+          : `<button onclick="toggleHandled(${c.rowIndex}, true)" class="w-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-4 rounded-lg shadow mt-2">✓ 対応済みにする</button>`;
         return `
           <div class="${cardCls} rounded-2xl p-6 shadow">
             <div class="flex flex-wrap items-center gap-3 mb-4">
               ${badge}
-              <span class="text-base ${c.handled ? 'text-gray-500' : 'text-gray-600'}">${c.date}  ${c.time}</span>
+              <span class="text-base ${handled ? 'text-gray-500' : 'text-gray-600'}">${escapeHtml(formatTimestamp(c['タイムスタンプ']))}</span>
             </div>
             <table class="w-full text-base mb-4">
               <tr class="border-b border-gray-200">
                 <td class="font-bold py-2 w-32 text-gray-600">お名前</td>
-                <td class="py-2">${escapeHtml(c.name)} さま</td>
+                <td class="py-2">${escapeHtml(c['お名前'] || '')} さま</td>
               </tr>
               <tr class="border-b border-gray-200">
                 <td class="font-bold py-2 text-gray-600">ご用件</td>
-                <td class="py-2">${escapeHtml(c.subject)}</td>
+                <td class="py-2">${escapeHtml(c['お問い合わせ種別'] || '(未選択)')}</td>
               </tr>
               <tr>
                 <td class="font-bold py-2 text-gray-600">メール</td>
-                <td class="py-2">${escapeHtml(c.email)}</td>
+                <td class="py-2">${escapeHtml(c['メールアドレス'] || '')}</td>
               </tr>
             </table>
-            <button onclick="openModal('${c.id}')" class="w-full bg-orange-500 hover:bg-orange-600 text-white text-xl font-bold py-4 rounded-lg shadow">
+            <button onclick="openModal(${c.rowIndex})" class="w-full bg-orange-500 hover:bg-orange-600 text-white text-xl font-bold py-4 rounded-lg shadow">
               🔍 ぜんぶ見る
             </button>
             ${toggleBtn}
@@ -222,43 +198,56 @@
       }).join('');
     }
 
-    function openModal(id) {
-      const c = contacts.find(x => x.id === id);
+    function openModal(rowIndex) {
+      const c = contacts.find(x => x.rowIndex === rowIndex);
       if (!c) return;
-      modalOpenId = id;
+      modalOpenRowIndex = rowIndex;
+      const handled = isHandled(c);
+      const email = c['メールアドレス'] || '';
+      const subject = c['お問い合わせ種別'] || 'お問い合わせ';
+      const body = c['お問い合わせ内容'] || '';
+      const tel = c['電話番号'] || '';
+
       document.getElementById('modal-body').innerHTML = `
         <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
           <div class="text-sm text-gray-500 mb-1">届いた日時</div>
-          <div class="text-lg font-bold">${c.date}  ${c.time}</div>
+          <div class="text-lg font-bold">${escapeHtml(formatTimestamp(c['タイムスタンプ']))}</div>
         </div>
         <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
           <div class="text-sm text-gray-500 mb-1">お名前</div>
-          <div class="text-lg font-bold">${escapeHtml(c.name)} さま</div>
+          <div class="text-lg font-bold">${escapeHtml(c['お名前'] || '')} さま</div>
         </div>
         <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
           <div class="text-sm text-gray-500 mb-1">メールアドレス</div>
-          <div class="text-lg font-bold">${escapeHtml(c.email)}</div>
+          <div class="text-lg font-bold">${escapeHtml(email)}</div>
         </div>
+        ${tel ? `<div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+          <div class="text-sm text-gray-500 mb-1">電話番号</div>
+          <div class="text-lg font-bold">${escapeHtml(tel)}</div>
+        </div>` : ''}
         <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
           <div class="text-sm text-gray-500 mb-1">ご用件</div>
-          <div class="text-lg font-bold">${escapeHtml(c.subject)}</div>
+          <div class="text-lg font-bold">${escapeHtml(subject)}</div>
         </div>
         <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
           <div class="text-sm text-gray-500 mb-2">お問い合わせ内容</div>
-          <div class="text-base whitespace-pre-wrap leading-relaxed">${escapeHtml(c.body)}</div>
+          <div class="text-base whitespace-pre-wrap leading-relaxed">${escapeHtml(body)}</div>
         </div>
-        <div class="bg-${c.handled ? 'green' : 'yellow'}-50 border-2 border-${c.handled ? 'green' : 'yellow'}-200 rounded-lg p-4 text-center">
+        <div class="bg-${handled ? 'green' : 'yellow'}-50 border-2 border-${handled ? 'green' : 'yellow'}-200 rounded-lg p-4 text-center">
           <div class="text-base font-bold">
-            ${c.handled ? '✓ このお問い合わせは対応済みです' : '⚠ このお問い合わせはまだ未対応です'}
+            ${handled ? '✓ このお問い合わせは対応済みです' : '⚠ このお問い合わせはまだ未対応です'}
           </div>
         </div>
       `;
-      const subject = encodeURIComponent('Re: ' + c.subject);
-      const body = encodeURIComponent(`${c.name} さま\n\nお問い合わせいただきありがとうございます。\n\n\n\n--- 元のお問い合わせ ---\n${c.body}`);
-      document.getElementById('modal-mailto').href = `mailto:${c.email}?subject=${subject}&body=${body}`;
+
+      const mailtoSubject = encodeURIComponent('Re: ' + subject);
+      const mailtoBody = encodeURIComponent(`${c['お名前'] || ''} さま\n\nお問い合わせいただきありがとうございます。\n\n\n\n--- 元のお問い合わせ ---\n${body}`);
+      const mailto = document.getElementById('modal-mailto');
+      mailto.href = email ? `mailto:${email}?subject=${mailtoSubject}&body=${mailtoBody}` : '#';
+      mailto.style.opacity = email ? '1' : '0.5';
 
       const toggleBtn = document.getElementById('modal-toggle');
-      if (c.handled) {
+      if (handled) {
         toggleBtn.textContent = '↩ 対応中に戻す';
         toggleBtn.className = 'w-full bg-gray-500 hover:bg-gray-600 text-white text-xl font-bold py-4 rounded-lg shadow';
       } else {
@@ -273,25 +262,28 @@
     function closeModal() {
       document.getElementById('modal').classList.add('hidden');
       document.body.style.overflow = '';
-      modalOpenId = null;
+      modalOpenRowIndex = null;
     }
 
-    function toggleHandled(id) {
-      const c = contacts.find(x => x.id === id);
+    async function toggleHandled(rowIndex, handled) {
+      try {
+        await client.markContactHandled(rowIndex, handled);
+        showMessage(handled ? '✓ 対応済みにしました' : '✓ 対応中に戻しました', 'success');
+        await refresh();
+      } catch (err) {
+        showMessage('更新できませんでした: ' + err.message, 'error');
+      }
+    }
+
+    async function toggleHandledFromModal() {
+      if (!modalOpenRowIndex) return;
+      const c = contacts.find(x => x.rowIndex === modalOpenRowIndex);
       if (!c) return;
-      c.handled = !c.handled;
-      saveContacts();
-      showMessage(c.handled ? '✓ 対応済みにしました' : '✓ 対応中に戻しました', 'success');
-      render();
-    }
-
-    function toggleHandledFromModal() {
-      if (!modalOpenId) return;
-      const id = modalOpenId;
-      toggleHandled(id);
-      // モーダル内のボタン状態も更新
-      const c = contacts.find(x => x.id === id);
-      if (c) openModal(id);
+      const next = !isHandled(c);
+      await toggleHandled(modalOpenRowIndex, next);
+      // モーダル再描画
+      const updated = contacts.find(x => x.rowIndex === modalOpenRowIndex);
+      if (updated) openModal(modalOpenRowIndex);
     }
 
     function showMessage(text, type) {
@@ -304,20 +296,9 @@
       showMessage._t = setTimeout(() => el.classList.add('hidden'), 3000);
     }
 
-    function resetData() {
-      if (!confirm('お試し用のデータを最初の状態に戻します。よろしいですか？')) return;
-      contacts = JSON.parse(JSON.stringify(INITIAL));
-      showAll = false;
-      saveContacts();
-      saveFilter();
-      closeModal();
-      showMessage('✓ 最初の状態に戻しました', 'success');
-      render();
-    }
-
     document.getElementById('show-all').addEventListener('change', e => {
       showAll = e.target.checked;
-      saveFilter();
+      localStorage.setItem(FILTER_KEY, showAll ? '1' : '0');
       render();
     });
 
@@ -325,7 +306,7 @@
       if (e.key === 'Escape') closeModal();
     });
 
-    render();
+    refresh();
   </script>
 
 </body>

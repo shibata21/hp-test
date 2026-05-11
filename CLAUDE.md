@@ -43,28 +43,25 @@
 | [contact.html](contact.html) | お問い合わせ — Googleフォームに `mode: 'no-cors'` で POST |
 | [config.js](config.js) | スプレッドシートCSV URL / フォーム POST URL / entry ID をここに集約 |
 
-## admin/ — 進行中ワイヤーフレーム（コミット済み・GAS未接続）
+## admin/ — Apps Script Web App 接続済み
 
-店舗オーナーが直接触る前提の管理画面のワイヤー。
-**現状はlocalStorageのみで動作するモック段階**で、Googleとの本物接続は未着手。
+店舗オーナーが直接触る前提の管理画面。**localStorage モックから infra_auto が生成した GAS Web App への接続に移行済み**。
 
 | ファイル | 内容 |
 |---------|------|
-| [admin/index.html](admin/index.html) | あいことばログイン（ダミー、submit→dashboard.html遷移のみ） |
+| [admin/index.html](admin/index.html) | あいことばログイン（ダミー、submit→dashboard.html 遷移のみ） |
 | [admin/dashboard.html](admin/dashboard.html) | 大きなボタン2つ（お知らせ管理 / お問い合わせ閲覧） |
-| [admin/news.html](admin/news.html) | お知らせCRUD。`localStorage['admin_news_wire_v1']` |
-| [admin/contacts.html](admin/contacts.html) | お問い合わせ一覧・対応済みトグル・mailto返信。`localStorage['admin_contacts_wire_v1']` |
+| [admin/news.html](admin/news.html) | お知らせ CRUD。`lib/adminClient.js` 経由で NewsWebApp の doPost を叩く |
+| [admin/contacts.html](admin/contacts.html) | お問い合わせ一覧・対応済みトグル・mailto 返信。`lib/adminClient.js` 経由で ContactsWebApp の doPost を叩く |
 
-すべてのページに「⚠️ これはテスト動作です」バナー＋「最初の状態に戻す」ボタンあり。
+接続先は [config.js](config.js) の `ADMIN_WEB_APP` で定義（URL + adminToken）。infra_auto provision が e2etest クライアント向けに作った Apps Script プロジェクトをそのまま流用している。
 
-### 次の作業: Google スプレッドシート/フォームへの本物接続
+### 設計メモ
 
-| 機能 | 読み取り | 書き込み |
-|------|---------|---------|
-| お知らせCRUD | 公開CSVで可（[news.html](news.html) と同じ） | **Apps Script Web App（doPost）が必要** |
-| お問い合わせ閲覧 | フォーム回答シートを CSV 公開して読む方向で検討 | 「対応済み」フラグを書き戻すなら Apps Script |
-
-公開CSVは読み取り専用なので、書き込みが要る箇所はすべて Apps Script Web App 経由になる見込み。
+- 認証は adminToken（32バイト URL セーフランダム）を body に含めるシンプル方式。Google サインインは要求しない。
+- GAS Web App は HTTP ステータスコードを返せないので、レスポンス body の `ok` で成否判定する設計（[lib/adminClient.js](lib/adminClient.js) 参照）。
+- フィールド名は GAS 側の Sheet ヘッダーと合わせている（`日付` / `カテゴリ` / `タイトル` / `本文` ／ `お名前` / `メールアドレス` / `電話番号` / `お問い合わせ種別` / `お問い合わせ内容` / `対応`）。
+- 「対応済み」フラグは ContactsWebApp が回答シートの末尾列 `対応` に `済` を書き戻す。
 
 ### admin/ の UI 規約
 
