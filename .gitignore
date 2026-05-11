@@ -2,3 +2,10 @@
 Thumbs.db
 *.log
 desktop.ini
+
+# Claude Code session metadata
+.claude/
+
+# Editor
+.vscode/
+.idea/

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理画面トップ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #111; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+
+  <!-- ヘッダー -->
+  <header class="max-w-3xl mx-auto bg-white border-2 border-gray-300 rounded-2xl p-6 mb-6 flex justify-between items-center">
+    <div>
+      <p class="text-sm text-gray-500">いま見ている画面</p>
+      <h1 class="text-2xl font-bold">管理画面トップ</h1>
+    </div>
+    <a href="index.html" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded-lg text-lg">
+      ログアウト
+    </a>
+  </header>
+
+  <!-- 案内 -->
+  <div class="max-w-3xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-6">
+    <p class="text-lg leading-relaxed">
+      下のボタンから<span class="font-bold">やりたいこと</span>を選んでください。
+    </p>
+  </div>
+
+  <!-- 大きなボタン2つ -->
+  <div class="max-w-3xl mx-auto grid gap-6">
+
+    <a href="news.html" class="block bg-white hover:bg-green-50 border-4 border-green-500 rounded-2xl p-8 shadow transition">
+      <div class="flex items-center gap-6">
+        <div class="text-6xl">📢</div>
+        <div class="flex-1">
+          <h2 class="text-3xl font-bold text-green-700 mb-2">お知らせを管理する</h2>
+          <p class="text-lg text-gray-700">
+            ホームページに表示される「お知らせ」を<br>
+            書いたり、直したり、消したりできます
+          </p>
+        </div>
+        <div class="text-4xl text-green-600">▶</div>
+      </div>
+    </a>
+
+    <a href="contacts.html" class="block bg-white hover:bg-orange-50 border-4 border-orange-500 rounded-2xl p-8 shadow transition">
+      <div class="flex items-center gap-6">
+        <div class="text-6xl">📩</div>
+        <div class="flex-1">
+          <h2 class="text-3xl font-bold text-orange-700 mb-2">お問い合わせを見る</h2>
+          <p class="text-lg text-gray-700">
+            お客様から届いた<br>
+            お問い合わせを一覧で見られます
+          </p>
+        </div>
+        <div class="text-4xl text-orange-600">▶</div>
+      </div>
+    </a>
+
+  </div>
+
+</body>
+</html>

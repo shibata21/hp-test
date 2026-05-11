@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お知らせを管理する</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #f3f4f6; color: #111; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+
+  <!-- ヘッダー -->
+  <header class="max-w-4xl mx-auto bg-white border-2 border-gray-300 rounded-2xl p-6 mb-6 flex justify-between items-center">
+    <div>
+      <p class="text-sm text-gray-500">いま見ている画面</p>
+      <h1 class="text-2xl font-bold">📢 お知らせを管理する</h1>
+    </div>
+    <a href="dashboard.html" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded-lg text-lg">
+      ← 戻る
+    </a>
+  </header>
+
+  <!-- ワイヤー注意書き -->
+  <div class="max-w-4xl mx-auto bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-6 text-sm text-yellow-900 flex items-center justify-between gap-3">
+    <span>⚠️ これはテスト動作です。データはこのブラウザだけに保存されます。<button onclick="resetData()" class="underline font-bold ml-2">最初の状態に戻す</button></span>
+  </div>
+
+  <!-- メッセージ表示エリア -->
+  <div id="message" class="max-w-4xl mx-auto mb-4 hidden"></div>
+
+  <!-- 新しいお知らせを書く / なおす -->
+  <section id="form-section" class="max-w-4xl mx-auto bg-white border-4 border-green-500 rounded-2xl p-6 mb-8 shadow">
+
+    <div class="flex items-center justify-between mb-4">
+      <h2 id="form-title" class="text-2xl font-bold text-green-700">✏️ 新しいお知らせを書く</h2>
+      <button id="cancel-btn" onclick="cancelEdit()" class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+        やめる
+      </button>
+    </div>
+    <p class="text-base text-gray-700 mb-6">下の①〜④を全部うめて、いちばん下のボタンを押してください。</p>
+
+    <!-- ① 日付 -->
+    <label class="block mb-6">
+      <span class="text-lg font-bold mb-2 block">
+        <span class="bg-green-600 text-white px-3 py-1 rounded mr-2">①</span>
+        日付
+      </span>
+      <input
+        id="input-date"
+        type="date"
+        class="w-full border-2 border-gray-400 rounded-lg p-3 text-xl focus:border-green-500 focus:outline-none"
+      >
+    </label>
+
+    <!-- ② カテゴリ -->
+    <label class="block mb-6">
+      <span class="text-lg font-bold mb-2 block">
+        <span class="bg-green-600 text-white px-3 py-1 rounded mr-2">②</span>
+        カテゴリ（種類）
+      </span>
+      <select id="input-category" class="w-full border-2 border-gray-400 rounded-lg p-3 text-xl focus:border-green-500 focus:outline-none bg-white">
+        <option value="">選んでください</option>
+        <option value="お知らせ">お知らせ</option>
+        <option value="イベント">イベント</option>
+        <option value="新商品">新商品</option>
+        <option value="季節">季節</option>
+      </select>
+    </label>
+
+    <!-- ③ タイトル -->
+    <label class="block mb-6">
+      <span class="text-lg font-bold mb-2 block">
+        <span class="bg-green-600 text-white px-3 py-1 rounded mr-2">③</span>
+        タイトル（見出し）
+      </span>
+      <input
+        id="input-title"
+        type="text"
+        placeholder="例: 母の日のお花、はじめました"
+        class="w-full border-2 border-gray-400 rounded-lg p-3 text-xl focus:border-green-500 focus:outline-none"
+      >
+      <span class="text-sm text-gray-500 mt-1 block">短めに、ひと目でわかる文にしてください</span>
+    </label>
+
+    <!-- ④ 本文 -->
+    <label class="block mb-8">
+      <span class="text-lg font-bold mb-2 block">
+        <span class="bg-green-600 text-white px-3 py-1 rounded mr-2">④</span>
+        本文（くわしい内容）
+      </span>
+      <textarea
+        id="input-body"
+        rows="5"
+        placeholder="お知らせの詳しい内容を書いてください"
+        class="w-full border-2 border-gray-400 rounded-lg p-3 text-lg focus:border-green-500 focus:outline-none"
+      ></textarea>
+    </label>
+
+    <!-- 送信ボタン -->
+    <button
+      id="submit-btn"
+      type="button"
+      onclick="submitForm()"
+      class="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold py-5 rounded-lg shadow"
+    >
+      ✓ ホームページに載せる
+    </button>
+
+  </section>
+
+  <!-- 既存お知らせ一覧 -->
+  <section class="max-w-4xl mx-auto bg-white border-2 border-gray-300 rounded-2xl p-6 shadow">
+
+    <h2 class="text-2xl font-bold mb-4">📋 いま載っているお知らせ</h2>
+    <p class="text-base text-gray-700 mb-6">直したいときは「なおす」、消したいときは「けす」を押してください。</p>
+
+    <div id="news-list" class="space-y-4"></div>
+
+  </section>
+
+  <!-- 戻るボタン（下にも） -->
+  <div class="max-w-4xl mx-auto mt-8 text-center">
+    <a href="dashboard.html" class="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-8 rounded-lg text-xl">
+      ← 管理画面トップに戻る
+    </a>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'admin_news_wire_v1';
+    const INITIAL = [
+      { id: 'init-1', date: '2026-05-08', category: '季節', title: '母の日のお花、はじめました', body: 'カーネーションをはじめ、母の日にぴったりの花束をご用意しております。ご予約も承っております。' },
+      { id: 'init-2', date: '2026-04-20', category: 'イベント', title: '寄せ植え教室を開催します', body: '5月15日（土）に春の寄せ植え教室を開きます。参加費2,500円、お一人様材料費込み。先着10名様。' },
+      { id: 'init-3', date: '2026-04-01', category: 'お知らせ', title: '営業時間変更のご案内', body: '4月より営業時間を10時〜19時に変更いたします。日曜定休は変更ございません。' }
+    ];
+
+    const CATEGORY_COLORS = {
+      'お知らせ': 'bg-green-200 text-green-800',
+      'イベント': 'bg-blue-200 text-blue-800',
+      '新商品': 'bg-orange-200 text-orange-800',
+      '季節': 'bg-pink-200 text-pink-800'
+    };
+
+    let items = loadItems();
+    let editingId = null;
+
+    function loadItems() {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) {
+        try { return JSON.parse(s); } catch (e) {}
+      }
+      return JSON.parse(JSON.stringify(INITIAL));
+    }
+
+    function saveItems() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function render() {
+      const el = document.getElementById('news-list');
+      if (items.length === 0) {
+        el.innerHTML = '<p class="text-center text-gray-500 py-12 text-lg">お知らせはまだありません</p>';
+        return;
+      }
+      el.innerHTML = items.map(item => `
+        <div class="border-2 border-gray-300 rounded-lg p-5 bg-gray-50 ${editingId === item.id ? 'ring-4 ring-blue-300' : ''}">
+          <div class="flex flex-wrap items-center gap-3 mb-3">
+            <span class="text-base text-gray-600">${escapeHtml(item.date)}</span>
+            <span class="${CATEGORY_COLORS[item.category] || 'bg-gray-200 text-gray-800'} px-3 py-1 rounded-full text-sm font-bold">${escapeHtml(item.category)}</span>
+            <span class="text-lg font-bold flex-1">${escapeHtml(item.title)}</span>
+          </div>
+          <p class="text-gray-700 mb-4 text-base whitespace-pre-wrap">${escapeHtml(item.body)}</p>
+          <div class="flex gap-3">
+            <button onclick="startEdit('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg">✏️ なおす</button>
+            <button onclick="deleteItem('${item.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg">🗑️ けす</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function startEdit(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      editingId = id;
+      document.getElementById('input-date').value = item.date;
+      document.getElementById('input-category').value = item.category;
+      document.getElementById('input-title').value = item.title;
+      document.getElementById('input-body').value = item.body;
+      switchMode('edit');
+      render();
+      document.getElementById('form-section').scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+
+    function cancelEdit() {
+      editingId = null;
+      clearForm();
+      switchMode('new');
+      render();
+    }
+
+    function switchMode(mode) {
+      const section = document.getElementById('form-section');
+      const title = document.getElementById('form-title');
+      const btn = document.getElementById('submit-btn');
+      const cancel = document.getElementById('cancel-btn');
+      if (mode === 'edit') {
+        section.classList.remove('border-green-500');
+        section.classList.add('border-blue-500');
+        title.textContent = '✏️ お知らせをなおす';
+        title.classList.remove('text-green-700');
+        title.classList.add('text-blue-700');
+        btn.textContent = '✓ なおして保存する';
+        btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        cancel.classList.remove('hidden');
+      } else {
+        section.classList.remove('border-blue-500');
+        section.classList.add('border-green-500');
+        title.textContent = '✏️ 新しいお知らせを書く';
+        title.classList.remove('text-blue-700');
+        title.classList.add('text-green-700');
+        btn.textContent = '✓ ホームページに載せる';
+        btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        btn.classList.add('bg-green-600', 'hover:bg-green-700');
+        cancel.classList.add('hidden');
+      }
+    }
+
+    function clearForm() {
+      document.getElementById('input-date').value = '';
+      document.getElementById('input-category').value = '';
+      document.getElementById('input-title').value = '';
+      document.getElementById('input-body').value = '';
+    }
+
+    function showMessage(text, type) {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = type === 'success'
+        ? 'max-w-4xl mx-auto mb-4 p-4 rounded-lg border-2 bg-green-100 border-green-400 text-green-900 text-lg font-bold'
+        : 'max-w-4xl mx-auto mb-4 p-4 rounded-lg border-2 bg-red-100 border-red-400 text-red-900 text-lg font-bold';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+      clearTimeout(showMessage._t);
+      showMessage._t = setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    function submitForm() {
+      const date = document.getElementById('input-date').value;
+      const category = document.getElementById('input-category').value;
+      const title = document.getElementById('input-title').value.trim();
+      const body = document.getElementById('input-body').value.trim();
+
+      const missing = [];
+      if (!date) missing.push('① 日付');
+      if (!category) missing.push('② カテゴリ');
+      if (!title) missing.push('③ タイトル');
+      if (!body) missing.push('④ 本文');
+      if (missing.length) {
+        showMessage('入力されていない項目があります: ' + missing.join('、'), 'error');
+        return;
+      }
+
+      const confirmText = editingId
+        ? 'この内容で書きかえてよろしいですか？'
+        : 'この内容でホームページに載せてよろしいですか？';
+      if (!confirm(confirmText)) return;
+
+      if (editingId) {
+        items = items.map(i => i.id === editingId ? {...i, date, category, title, body} : i);
+        showMessage('✓ お知らせを書きかえました', 'success');
+      } else {
+        items.unshift({id: 'item-' + Date.now(), date, category, title, body});
+        showMessage('✓ ホームページに載せました', 'success');
+      }
+      saveItems();
+      editingId = null;
+      clearForm();
+      switchMode('new');
+      render();
+    }
+
+    function deleteItem(id) {
+      if (!confirm('本当にこのお知らせを消しますか？\n（一度消すと元に戻せません）')) return;
+      items = items.filter(i => i.id !== id);
+      saveItems();
+      if (editingId === id) {
+        editingId = null;
+        clearForm();
+        switchMode('new');
+      }
+      showMessage('✓ お知らせを消しました', 'success');
+      render();
+    }
+
+    function resetData() {
+      if (!confirm('お試し用のデータを最初の状態に戻します。よろしいですか？')) return;
+      items = JSON.parse(JSON.stringify(INITIAL));
+      editingId = null;
+      saveItems();
+      clearForm();
+      switchMode('new');
+      showMessage('✓ 最初の状態に戻しました', 'success');
+      render();
+    }
+
+    render();
+  </script>
+
+</body>
+</html>
